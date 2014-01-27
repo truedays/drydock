@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Simple wrapper to automatically commit(save) progress on an interactive build-up of a docker image
+#
+# MAIL: ray@truedays.org
+# URL: https://github.com/truedays/slipway
+#
+
+runargs=" run -i -t "
+dcommand=" bash "
+dockerID=$1
+IMAGES=`docker images -q`
+
+function getID {
+until (docker ps -a -q; docker images -q) | egrep -q "^${dockerID}$"; do  
+echo
+echo " --- "
+## uncomment for color hack
+##echo "REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE"; docker images | egrep "$(echo $IMAGES | tr ' ' \|)" --color
+docker ps -a 
+docker images #| egrep "$(IMAGES | tr ' ' \||IMAGE\ ID)"
+echo " --- "
+echo "$MSG"
+echo -n "Docker IMAGE ID: "
+read dockerID
+MSG="$dockerID is NOT a valid IMAGE ID"
+done
+}
+
+if [ -z $dockerID ]; then
+MSG="Please enter a valid IMAGE ID"
+else
+MSG="$dockerID is NOT a valid IMAGE ID"
+fi
+
+getID
+dusername=$(docker info | grep Username | cut -d" " -f2) 
+
+if (docker images | grep $dockerID | grep -q "/")
+ then
+ elif (docker images | grep $dockerID | grep -q $dusername)
+ #### then  ### LEFT OFF HERE.. trying to have logic where if $username match repo then us that repo as default, otherwise replace repo "owner" with current username and use that as default
+ defaultrepo="$(docker images | grep $dockerID | grep $dusername | awk '{print $1}')"
+ echo "Setting default REPO to: $defaultrepo"
+ else
+ echo "Non-indexed image detected. Will need to ask how to name this when commiting"
+fi
+ 
+
+
+echo "raw: ${dockerID}"
+echo -e "\nUsing:\n `(docker images; docker ps -a) | grep ${dockerID}`"
+
+
+exit 128
+
+while :; do
+docker ${runargs} ${dockerID} ${dcommand}
+echo "+++ Exit code: $? "
+done
